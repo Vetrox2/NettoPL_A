@@ -1,0 +1,10 @@
+{
+  "name": "nettopl",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gross-to-net salary calculator for Poland (frontend only)",
+  "scripts": {
+    "test": "node --test tests/calc.test.js tests/currency.test.js",
+    "start": "npx --yes serve ."
+  }
+}

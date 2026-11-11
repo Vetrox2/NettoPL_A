@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NettoPL</title>
+  <meta name="description" content="Gross-to-net salary calculator for Poland (umowa o pracę), with a month-by-month breakdown for the whole year.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f8a5b'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='15' fill='white' text-anchor='middle'%3Ezł%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1 class="brand">Netto<span>PL</span></h1>
+      <p class="tagline">Gross-to-net salary calculator for an employment contract in Poland · tax year <span id="tax-year">2026</span></p>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <section class="card form-card" aria-labelledby="form-title">
+      <h2 id="form-title">Your salary</h2>
+      <form id="calc-form" novalidate>
+        <label class="field">
+          <span class="field-label">Monthly gross salary <small>(brutto)</small></span>
+          <span class="money-input">
+            <input id="gross" name="gross" type="number" inputmode="decimal" min="0" step="100" value="8000" aria-describedby="gross-help">
+            <select id="currency" name="currency" class="currency-select" aria-label="Salary currency">
+              <option value="PLN">PLN</option>
+            </select>
+          </span>
+          <small id="gross-help" class="help">The amount from your contract, before any deductions.</small>
+        </label>
+
+        <label class="field display-field">
+          <span class="field-label">Show results in</span>
+          <select id="display-currency" name="displayCurrency">
+            <option value="PLN">PLN – Polish złoty</option>
+          </select>
+        </label>
+
+        <div class="fx-info" id="fx-info" aria-live="polite" hidden></div>
+
+        <div class="option">
+          <label class="check">
+            <input id="young" name="young" type="checkbox">
+            <span>
+              <strong>I'm under 26</strong>
+              <small>Tax relief for young people (<i>ulga dla młodych</i>): no PIT on up to 85 528 PLN of salary per year.</small>
+            </span>
+          </label>
+          <label class="field sub-field" id="birthday-field" hidden>
+            <span class="field-label">When do you turn 26?</span>
+            <select id="birthday" name="birthday">
+              <option value="12">Not in 2026 — relief all year</option>
+            </select>
+            <small class="help">The relief covers pay received up to your 26th birthday. We assume the salary for your birthday month is paid after the birthday.</small>
+          </label>
+        </div>
+
+        <div class="option">
+          <label class="check">
+            <input id="elevated" name="elevated" type="checkbox">
+            <span>
+              <strong>I commute from another town</strong>
+              <small>Higher work costs (<i>podwyższone koszty uzyskania przychodu</i>): 300 PLN instead of 250 PLN per month, when your workplace is outside the town you live in.</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="option">
+          <label class="check">
+            <input id="author" name="author" type="checkbox">
+            <span>
+              <strong>Part of my work is creative</strong>
+              <small>Author's costs (<i>50% koszty autorskie, KUP50</i>): half of the creative part of your salary, after ZUS, is treated as costs. Up to 120 000 PLN of costs per year.</small>
+            </span>
+          </label>
+          <div class="field sub-field" id="author-field" hidden>
+            <label class="field-label" for="author-share">Share of salary for creative work</label>
+            <div class="share-input">
+              <input id="author-share-range" type="range" min="1" max="100" step="1" value="50" aria-label="Share of salary for creative work" tabindex="-1">
+              <span class="money-input pct-input">
+                <input id="author-share" name="authorShare" type="number" inputmode="numeric" min="1" max="100" step="1" value="50">
+                <span class="suffix">%</span>
+              </span>
+            </div>
+            <small class="help" id="author-help">As stated in your contract or timesheet. The standard work costs still apply to the rest of the salary.</small>
+          </div>
+        </div>
+
+        <div class="option">
+          <label class="check">
+            <input id="pit2" name="pit2" type="checkbox" checked>
+            <span>
+              <strong>I filed PIT-2 with my employer</strong>
+              <small>The employer lowers your monthly tax by 300 PLN (<i>kwota zmniejszająca podatek</i>). Most employees have this.</small>
+            </span>
+          </label>
+        </div>
+      </form>
+    </section>
+
+    <div class="results" aria-live="polite">
+      <section class="kpis" aria-label="Summary">
+        <div class="kpi kpi-main">
+          <span class="kpi-label" id="kpi-month-label">Net per month</span>
+          <span class="kpi-value" id="kpi-month">–</span>
+          <span class="kpi-note" id="kpi-month-note"></span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Net for the year</span>
+          <span class="kpi-value" id="kpi-year">–</span>
+          <span class="kpi-note" id="kpi-year-note"></span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Deductions for the year</span>
+          <span class="kpi-value" id="kpi-deductions">–</span>
+          <span class="kpi-note" id="kpi-deductions-note"></span>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="split-title">
+        <h2 id="split-title">Where your money goes</h2>
+        <p class="muted" id="split-sub">Your gross salary for the whole year, split into what you keep and what is deducted.</p>
+        <div class="split-bar" id="split-bar" role="img"></div>
+        <ul class="legend" id="legend"></ul>
+      </section>
+
+      <section class="card" aria-labelledby="table-title">
+        <div class="card-head">
+          <h2 id="table-title">Month by month</h2>
+          <p class="muted"><span id="table-currency">Amounts in PLN.</span> Highlights mark the months where something changes.</p>
+        </div>
+        <div class="table-scroll" tabindex="0" aria-label="Monthly breakdown table, scrollable">
+          <table class="months">
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
+                <th scope="col" class="num">Gross</th>
+                <th scope="col" class="num" title="Emerytalne 9.76%">Pension</th>
+                <th scope="col" class="num" title="Rentowe 1.5%">Disability</th>
+                <th scope="col" class="num" title="Chorobowe 2.45%">Sickness</th>
+                <th scope="col" class="num" title="Składka zdrowotna 9%">Health</th>
+                <th scope="col" class="num" title="Koszty uzyskania przychodu">Costs</th>
+                <th scope="col" class="num" title="Podstawa opodatkowania">Tax base</th>
+                <th scope="col" class="num" title="Zaliczka na PIT">PIT</th>
+                <th scope="col" class="num">Net</th>
+                <th scope="col" class="bar-col"><span class="sr-only">Split</span></th>
+              </tr>
+            </thead>
+            <tbody id="months-body"></tbody>
+            <tfoot id="months-foot"></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="card notes" aria-labelledby="notes-title">
+        <h2 id="notes-title">How it's calculated</h2>
+        <ul>
+          <li><strong>Social security (ZUS)</strong>: pension 9.76%, disability 1.5%, sickness 2.45% of gross. Pension and disability stop once your gross for the year passes <span data-param="pensionCap"></span> PLN (30× the projected average wage).</li>
+          <li><strong>Health insurance</strong>: 9% of gross minus social security. It is not deductible from tax.</li>
+          <li><strong>Tax base</strong>: gross minus social security minus work costs (250 PLN, or 300 PLN when commuting), rounded to full złoty.</li>
+          <li><strong>Author's costs</strong>: for the creative share of your salary, 50% of that share minus the social security paid on it, up to <span data-param="authorCostLimit"></span> PLN per year. The standard work costs cover the rest of the salary; if all of it is creative, only author's costs apply.</li>
+          <li><strong>PIT advance</strong>: 12% of the tax base, 32% on the part above <span data-param="taxThreshold"></span> PLN for the year, minus 300 PLN with PIT-2, rounded to full złoty.</li>
+          <li><strong>Relief for young people</strong>: pay up to <span data-param="youngReliefLimit"></span> PLN per year is exempt from PIT. Social security and health insurance are still paid. Above the limit, only the excess is taxed.</li>
+        </ul>
+        <p class="muted small" id="fx-note">Salaries in another currency are converted to złoty at the NBP average rate (table A). Tax and contributions are always calculated in złoty, so limits like 120 000 PLN stay in złoty. For the real payslip, your employer uses the NBP rate from the last business day before payday, so the result will move with the exchange rate.</p>
+        <p class="muted small">This is an estimate of the monthly payslip for one employer and a constant salary. It doesn't cover PPK, bonuses, sick leave, joint filing with a spouse or other reliefs settled in your annual PIT return. Your employer's numbers may differ by a few grosze due to rounding.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer wrap">
+    <p>NettoPL runs entirely in your browser. Nothing you enter leaves this page.</p>
+  </footer>
+
+  <script src="js/calc.js"></script>
+  <script src="js/currency.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
